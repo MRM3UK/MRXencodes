@@ -1,67 +1,92 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamVault | Pro Mobile</title>
+    <title>StreamVault | Pro</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <a href="admin/admin.html" class="admin-fab">
-        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-    </a>
-
     <nav>
-        <div class="nav-container">
-            <div class="brand">STREAM<span>VAULT</span></div>
-            <div class="search-bar">
-                <input type="text" id="search" placeholder="Search movies...">
-            </div>
+        <div class="nav-flex">
+            <div class="brand">STREAMVAULT</div>
+            <div id="authSlot"><button class="btn btn-red" onclick="login()" style="padding:5px 15px; width:auto;">Login</button></div>
         </div>
     </nav>
 
-    <header class="hero">
-        <div style="font-size:12px; font-weight:bold; color:var(--primary); margin-bottom:5px;">#1 TRENDING</div>
-        <h1>Latest Releases</h1>
-        <p>Premium direct downloads for the latest cinema and series.</p>
-    </header>
-
     <main class="container">
-        <h2 style="margin-bottom: 20px; font-size: 1.2rem;">Recent Uploads</h2>
-        <div id="loader" style="text-align: center; padding: 50px;">Loading Vault...</div>
-        <div id="grid" class="grid"></div>
+        <div id="userTabs" style="display:none; margin-bottom:20px; gap:10px;">
+            <button onclick="setView('home')" class="btn btn-main" style="width:auto;">Latest</button>
+            <button onclick="setView('req')" class="btn btn-red" style="width:auto;">Request Movie</button>
+        </div>
+
+        <div id="movieGrid" class="grid"></div>
+
+        <div id="reqSection" class="request-box" style="display:none; max-width:500px; margin:auto;">
+            <h3>New Request</h3>
+            <input type="text" id="reqTitle" placeholder="Enter Movie or Series name...">
+            <button id="submitReq" class="btn btn-red">Submit to Admin</button>
+        </div>
     </main>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = { /* PASTE CONFIG HERE */ };
+        const firebaseConfig = {
+            apiKey: "AIzaSyARmXoxU0rLXLGZa4Tz1JtYzo4HjwrM-s8",
+            authDomain: "mrxencodes.firebaseapp.com",
+            projectId: "mrxencodes",
+            storageBucket: "mrxencodes.firebasestorage.app",
+            messagingSenderId: "595967941836",
+            appId: "1:595967941836:web:9697bd551fab52f3167669"
+        };
+
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
-        const grid = document.getElementById('grid');
-        const loader = document.getElementById('loader');
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                if (user.email === "mynewp570@gmail.com") {
+                    window.location.href = "admin/admin.html";
+                } else {
+                    document.getElementById('authSlot').innerHTML = `<button onclick="signOut(auth)" style="background:none; border:none; color:white; font-size:12px; cursor:pointer;">Logout</button>`;
+                    document.getElementById('userTabs').style.display = 'flex';
+                }
+            }
+        });
+
+        window.login = () => signInWithPopup(auth, provider);
+        window.setView = (v) => {
+            document.getElementById('movieGrid').style.display = v === 'home' ? 'grid' : 'none';
+            document.getElementById('reqSection').style.display = v === 'req' ? 'block' : 'none';
+        };
+
+        document.getElementById('submitReq').onclick = async () => {
+            const t = document.getElementById('reqTitle').value;
+            if(!t) return alert("Enter a title");
+            await addDoc(collection(db, "requests"), {
+                title: t,
+                userName: auth.currentUser.displayName,
+                createdAt: serverTimestamp()
+            });
+            alert("Sent!");
+            document.getElementById('reqTitle').value = '';
+            setView('home');
+        };
 
         onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (snap) => {
-            loader.style.display = 'none';
-            grid.innerHTML = snap.docs.map(doc => {
-                const p = doc.data();
-                return `
-                    <div class="card">
-                        <div class="poster-box">
-                            <img src="${p.posterURL}" loading="lazy">
-                        </div>
-                        <div class="card-body">
-                            <div class="card-title">${p.title}</div>
-                            <div style="font-size:11px; color:#aaa; margin-bottom:10px;">S${p.season}E${p.episode} • ${p.quality}</div>
-                            <a href="${p.downloadURL}" class="btn-dl">Download</a>
-                        </div>
+            document.getElementById('movieGrid').innerHTML = snap.docs.map(d => `
+                <div class="movie-card">
+                    <div class="poster-wrap"><img src="${d.data().posterURL}"></div>
+                    <div class="card-body">
+                        <div class="card-title">${d.data().title}</div>
+                        <a href="${d.data().downloadURL}" class="btn btn-main" target="_blank">Download</a>
                     </div>
-                `;
-            }).join('');
+                </div>`).join('');
         });
     </script>
 </body>
