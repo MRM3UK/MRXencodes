@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamVault | Admin</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .admin-form { background: var(--surface); padding: 20px; border-radius: 12px; margin-top: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
+        input, textarea { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: white; border-radius: 8px; }
+        .login-btn { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container" style="margin-top: 50px;">
+        <div id="loginSection" style="max-width: 400px; margin: 0 auto; text-align: center;">
+            <h1 style="color:var(--primary); margin-bottom:10px;">Admin Portal</h1>
+            <p style="margin-bottom:30px;">Login with your Google Account</p>
+            <button id="googleBtn" class="login-btn">Login with Google</button>
+        </div>
+
+        <div id="adminDash" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Admin Dashboard</h2>
+                <button id="logout" style="background:none; border:none; color:red;">Logout</button>
+            </div>
+
+            <div class="admin-form">
+                <textarea id="rawPost" placeholder="Paste Telegram Post here..." rows="4"></textarea>
+                <button id="parseBtn" style="width:100%; margin-top:10px; background:#444; color:white; padding:10px; border:none; border-radius:8px;">1. Smart Parse</button>
+                
+                <div class="input-group" style="margin-top:20px;">
+                    <label>Movie Title</label>
+                    <input type="text" id="title">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="input-group"><label>Season</label><input type="text" id="season"></div>
+                    <div class="input-group"><label>Episode</label><input type="text" id="episode"></div>
+                </div>
+                <input type="text" id="dlUrl" placeholder="Download URL" style="margin-bottom:10px;">
+                <input type="text" id="posterUrl" placeholder="Poster URL (TMDB)">
+                
+                <button id="publish" class="login-btn" style="margin-top:20px;">PUBLISH RELEASE</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { /* PASTE CONFIG HERE */ };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        const ADMIN_EMAIL = "mynewp570@gmail.com";
+
+        // Auth Logic
+        document.getElementById('googleBtn').onclick = () => signInWithPopup(auth, provider);
+        document.getElementById('logout').onclick = () => signOut(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            if (user && user.email === ADMIN_EMAIL) {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('adminDash').style.display = 'block';
+            } else if (user) {
+                alert("Access Denied");
+                signOut(auth);
+            }
+        });
+
+        // Parse Logic
+        document.getElementById('parseBtn').onclick = () => {
+            const raw = document.getElementById('rawPost').value;
+            document.getElementById('title').value = raw.split(/S\d+/i)[0].replace(/\./g, ' ').trim();
+            document.getElementById('season').value = (raw.match(/S(\d+)/i) || [])[1] || '';
+            document.getElementById('episode').value = (raw.match(/E(\d+)/i) || [])[1] || '';
+            document.getElementById('dlUrl').value = (raw.match(/https?:\/\/[^\s]+/) || [])[0] || '';
+        };
+
+        // Publish Logic
+        document.getElementById('publish').onclick = async () => {
+            await addDoc(collection(db, "posts"), {
+                title: document.getElementById('title').value,
+                season: document.getElementById('season').value,
+                episode: document.getElementById('episode').value,
+                downloadURL: document.getElementById('dlUrl').value,
+                posterURL: document.getElementById('posterUrl').value || 'https://via.placeholder.com/300x450',
+                createdAt: serverTimestamp()
+            });
+            alert("Success!");
+            location.reload();
+        };
+    </script>
+</body>
+</html>
