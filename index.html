@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamVault Pro | Cinema Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="maintScreen" class="maintenance-overlay">
+        <h1><i class="fas fa-tools"></i> Under Maintenance</h1>
+        <p>We're polishing the vault. Back shortly!</p>
+    </div>
+
+    <div class="hero-header" id="heroBg">
+        <nav class="glass-nav">
+            <div class="nav-content">
+                <div class="brand">STREAM<span>VAULT</span></div>
+                <div class="nav-tools">
+                    <div class="search-pill">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search title...">
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="hero-info" id="heroInfo">
+            <span class="trending-tag">#1 TRENDING NOW</span>
+            <h1 id="heroTitle">Latest Releases</h1>
+            <p id="heroMeta">High-quality direct downloads for movies and series.</p>
+        </div>
+    </div>
+
+    <main class="content-wrapper">
+        <div class="section-header">
+            <h2>Recent Uploads</h2>
+            <div class="view-stats"><i class="fas fa-fire"></i> <span id="count">0</span> Releases</div>
+        </div>
+        <div id="mainGrid" class="grid">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { /* PASTE CONFIG */ };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Maintenance & Data Load
+        onSnapshot(doc(db, "settings", "global"), d => {
+            document.getElementById('maintScreen').style.display = d.data()?.maintenance ? 'flex' : 'none';
+        });
+
+        let allPosts = [];
+        onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), snap => {
+            allPosts = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            document.getElementById('count').innerText = allPosts.length;
+            render(allPosts);
+            if(allPosts.length > 0) updateHero(allPosts[0]);
+        });
+
+        function updateHero(top) {
+            document.getElementById('heroBg').style.backgroundImage = `linear-gradient(to bottom, rgba(11,11,11,0.4), var(--bg)), url('${top.posterURL}')`;
+            document.getElementById('heroTitle').innerText = top.title;
+        }
+
+        function render(data) {
+            const grid = document.getElementById('mainGrid');
+            grid.innerHTML = data.map(item => `
+                <div class="movie-card">
+                    <div class="poster-container">
+                        <img src="${item.posterURL}" loading="lazy">
+                        <div class="quality-tag">${item.quality}</div>
+                    </div>
+                    <div class="movie-details">
+                        <div class="episode-info">S${item.season} • E${item.episode}</div>
+                        <h3>${item.title}</h3>
+                        <div class="file-meta">${item.size} | ${item.audio}</div>
+                        <div class="action-row">
+                            <a href="${item.downloadURL}" class="dl-btn"><i class="fas fa-download"></i> GET LINK</a>
+                            <button class="sh-btn" onclick="navigator.clipboard.writeText('${item.downloadURL}')"><i class="fas fa-share-alt"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
