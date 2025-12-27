@@ -1,96 +1,68 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamVault Pro | Cinema Hub</title>
+    <title>StreamVault | Pro Mobile</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <div id="maintScreen" class="maintenance-overlay">
-        <h1><i class="fas fa-tools"></i> Under Maintenance</h1>
-        <p>We're polishing the vault. Back shortly!</p>
-    </div>
+    <a href="admin/admin.html" class="admin-fab">
+        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    </a>
 
-    <div class="hero-header" id="heroBg">
-        <nav class="glass-nav">
-            <div class="nav-content">
-                <div class="brand">STREAM<span>VAULT</span></div>
-                <div class="nav-tools">
-                    <div class="search-pill">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Search title...">
-                    </div>
-                </div>
+    <nav>
+        <div class="nav-container">
+            <div class="brand">STREAM<span>VAULT</span></div>
+            <div class="search-bar">
+                <input type="text" id="search" placeholder="Search movies...">
             </div>
-        </nav>
-        
-        <div class="hero-info" id="heroInfo">
-            <span class="trending-tag">#1 TRENDING NOW</span>
-            <h1 id="heroTitle">Latest Releases</h1>
-            <p id="heroMeta">High-quality direct downloads for movies and series.</p>
         </div>
-    </div>
+    </nav>
 
-    <main class="content-wrapper">
-        <div class="section-header">
-            <h2>Recent Uploads</h2>
-            <div class="view-stats"><i class="fas fa-fire"></i> <span id="count">0</span> Releases</div>
-        </div>
-        <div id="mainGrid" class="grid">
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-        </div>
+    <header class="hero">
+        <div style="font-size:12px; font-weight:bold; color:var(--primary); margin-bottom:5px;">#1 TRENDING</div>
+        <h1>Latest Releases</h1>
+        <p>Premium direct downloads for the latest cinema and series.</p>
+    </header>
+
+    <main class="container">
+        <h2 style="margin-bottom: 20px; font-size: 1.2rem;">Recent Uploads</h2>
+        <div id="loader" style="text-align: center; padding: 50px;">Loading Vault...</div>
+        <div id="grid" class="grid"></div>
     </main>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = { /* PASTE CONFIG */ };
+        const firebaseConfig = { /* PASTE CONFIG HERE */ };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Maintenance & Data Load
-        onSnapshot(doc(db, "settings", "global"), d => {
-            document.getElementById('maintScreen').style.display = d.data()?.maintenance ? 'flex' : 'none';
-        });
+        const grid = document.getElementById('grid');
+        const loader = document.getElementById('loader');
 
-        let allPosts = [];
-        onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), snap => {
-            allPosts = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            document.getElementById('count').innerText = allPosts.length;
-            render(allPosts);
-            if(allPosts.length > 0) updateHero(allPosts[0]);
-        });
-
-        function updateHero(top) {
-            document.getElementById('heroBg').style.backgroundImage = `linear-gradient(to bottom, rgba(11,11,11,0.4), var(--bg)), url('${top.posterURL}')`;
-            document.getElementById('heroTitle').innerText = top.title;
-        }
-
-        function render(data) {
-            const grid = document.getElementById('mainGrid');
-            grid.innerHTML = data.map(item => `
-                <div class="movie-card">
-                    <div class="poster-container">
-                        <img src="${item.posterURL}" loading="lazy">
-                        <div class="quality-tag">${item.quality}</div>
-                    </div>
-                    <div class="movie-details">
-                        <div class="episode-info">S${item.season} • E${item.episode}</div>
-                        <h3>${item.title}</h3>
-                        <div class="file-meta">${item.size} | ${item.audio}</div>
-                        <div class="action-row">
-                            <a href="${item.downloadURL}" class="dl-btn"><i class="fas fa-download"></i> GET LINK</a>
-                            <button class="sh-btn" onclick="navigator.clipboard.writeText('${item.downloadURL}')"><i class="fas fa-share-alt"></i></button>
+        onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (snap) => {
+            loader.style.display = 'none';
+            grid.innerHTML = snap.docs.map(doc => {
+                const p = doc.data();
+                return `
+                    <div class="card">
+                        <div class="poster-box">
+                            <img src="${p.posterURL}" loading="lazy">
+                        </div>
+                        <div class="card-body">
+                            <div class="card-title">${p.title}</div>
+                            <div style="font-size:11px; color:#aaa; margin-bottom:10px;">S${p.season}E${p.episode} • ${p.quality}</div>
+                            <a href="${p.downloadURL}" class="btn-dl">Download</a>
                         </div>
                     </div>
-                </div>
-            `).join('');
-        }
+                `;
+            }).join('');
+        });
     </script>
 </body>
 </html>
